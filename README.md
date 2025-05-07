@@ -1,73 +1,118 @@
-# Welcome to your Lovable project
 
-## Project info
+# Grievance Management System
 
-**URL**: https://lovable.dev/projects/5a363c31-8233-4b51-8749-e81c296a54e3
+A modern web application for submitting and managing user grievances, with separate interfaces for users and administrators.
 
-## How can I edit this code?
+![Grievance Management System](https://via.placeholder.com/800x400?text=Grievance+Management+System)
 
-There are several ways of editing your application.
+## 🌟 Features
 
-**Use Lovable**
+### For Users
+- **Account Management**: Create an account and log in securely
+- **Grievance Submission**: Submit detailed grievances with categories
+- **Tracking System**: Track the status of submitted grievances
+- **Communication**: Comment on grievances and receive updates
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/5a363c31-8233-4b51-8749-e81c296a54e3) and start prompting.
+### For Administrators
+- **Dashboard Overview**: View statistics and recent grievances
+- **Management Tools**: Process, update status, and respond to grievances
+- **User Communication**: Provide feedback through the commenting system
 
-Changes made via Lovable will be committed automatically to this repo.
+## 💻 Tech Stack
 
-**Use your preferred IDE**
+- **Frontend**: React with TypeScript
+- **Styling**: Tailwind CSS with shadcn/ui components
+- **Routing**: React Router
+- **Build Tool**: Vite
+- **Icons**: Lucide React
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## 🚀 Getting Started
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Prerequisites
+- Node.js (v14 or higher)
+- npm or yarn package manager
 
-Follow these steps:
+### Installation
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+1. **Clone the repository**
+```bash
+git clone https://github.com/yourusername/grievance-management-system.git
+cd grievance-management-system
 ```
 
-**Edit a file directly in GitHub**
+2. **Install dependencies**
+```bash
+npm install
+# or
+yarn install
+```
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+3. **Start the development server**
+```bash
+npm run dev
+# or
+yarn dev
+```
 
-**Use GitHub Codespaces**
+4. **Open your browser**
+Navigate to `http://localhost:8080` to view the application.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## 📱 Usage
 
-## What technologies are used for this project?
+### User Flow
+1. Sign up for a new account or log in
+2. Navigate to the dashboard
+3. Submit a new grievance or track existing ones
+4. Add comments to provide additional information
 
-This project is built with:
+### Admin Flow
+1. Log in with admin credentials
+2. View all grievances from the dashboard
+3. Process grievances by updating their status
+4. Respond to users through comments
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## 🔐 Authentication
 
-## How can I deploy this project?
+The system includes mock authentication with two roles:
+- **User**: Can submit and track grievances
+- **Admin**: Can view all grievances and manage their status
 
-Simply open [Lovable](https://lovable.dev/projects/5a363c31-8233-4b51-8749-e81c296a54e3) and click on Share -> Publish.
+## 📝 Project Structure
 
-## Can I connect a custom domain to my Lovable project?
+```
+src/
+├── components/     # Reusable UI components
+├── context/        # React context for global state management
+├── hooks/          # Custom React hooks
+├── lib/            # Utility functions
+├── pages/          # Main application pages
+└── services/       # Service layer for data operations
+```
 
-Yes, you can!
+## 🔧 Customization
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+You can customize the application by:
+- Modifying the color theme in `tailwind.config.ts`
+- Adding new categories in the `CATEGORIES` array in `GrievanceForm.tsx`
+- Extending the model with additional fields in `grievanceService.ts`
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+## 🔄 Future Enhancements
+
+- **Real Database Integration**: Replace the mock data with a real database
+- **Email Notifications**: Send emails for status updates
+- **File Attachments**: Allow users to upload supporting documents
+- **Analytics Dashboard**: Provide visualizations of grievance data
+
+## 👥 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🙏 Acknowledgments
+
+- Built with [Lovable](https://lovable.dev)
+- UI components from [shadcn/ui](https://ui.shadcn.com)
+- Icons from [Lucide](https://lucide.dev)
