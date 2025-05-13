@@ -1,6 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { authApi } from '@/services/api';
+import Cookies from 'js-cookie';
 
 interface User {
   id: string;
@@ -31,8 +32,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   // Check for existing session on mount
   useEffect(() => {
+    const token = Cookies.get('auth_token');
     const storedUser = localStorage.getItem('user');
-    const token = localStorage.getItem('token');
     
     if (storedUser && token) {
       try {
@@ -41,7 +42,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       } catch (e) {
         console.error('Failed to parse stored user', e);
         localStorage.removeItem('user');
-        localStorage.removeItem('token');
+        Cookies.remove('auth_token');
       }
     }
     
@@ -53,11 +54,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setError(null);
     
     try {
-      const response = await authApi.login(email, password);
+      // Get registration token from cookies if available
+      const regToken = Cookies.get('reg_token');
+      
+      const response = await authApi.login(email, password, regToken);
       
       if (response.token) {
-        // Store the token
-        localStorage.setItem('token', response.token);
+        // Extract token (removing 'Bearer ' if present)
+        const token = response.token.startsWith('Bearer ') 
+          ? response.token.substring(7) 
+          : response.token;
+        
+        // Store the token in a cookie
+        Cookies.set('auth_token', token, { expires: 7 }); // Expires in 7 days
         
         // Format and store user info
         const userData: User = {
@@ -89,8 +98,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     try {
       const response = await authApi.register(name, email, password);
       
-      if (response.success) {
+      if (response.token) {
+        // Extract token (removing 'Bearer ' if present)
+        const token = response.token.startsWith('Bearer ') 
+          ? response.token.substring(7) 
+          : response.token;
+        
+        // Store registration token in a cookie
+        Cookies.set('reg_token', token, { expires: 1 }); // Expires in 1 day
+        
         // Auto-login after successful signup
+        return await login(email, password);
+      } else if (response.success) {
+        // No token but success flag is true
         return await login(email, password);
       } else {
         throw new Error('Signup failed');
@@ -106,7 +126,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const logout = () => {
     localStorage.removeItem('user');
-    localStorage.removeItem('token');
+    Cookies.remove('auth_token');
+    Cookies.remove('reg_token');
     setUser(null);
   };
 

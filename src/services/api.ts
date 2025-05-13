@@ -1,5 +1,6 @@
 
 import axios from 'axios';
+import Cookies from 'js-cookie';
 
 // Create an axios instance with default config
 const api = axios.create({
@@ -12,7 +13,7 @@ const api = axios.create({
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = Cookies.get('auth_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -23,9 +24,15 @@ api.interceptors.request.use(
 
 // Auth APIs
 export const authApi = {
-  login: async (email: string, password: string) => {
+  login: async (email: string, password: string, regToken?: string) => {
     try {
-      const response = await api.post('/api/auth/login', { email, password });
+      const config = regToken ? {
+        headers: {
+          Authorization: `Bearer ${regToken}`
+        }
+      } : {};
+      
+      const response = await api.post('/api/auth/login', { email, password }, config);
       return response.data;
     } catch (error) {
       console.error('Login error:', error);
