@@ -1,121 +1,128 @@
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { authApi } from '@/services/api';
 
-type User = {
+interface User {
   id: string;
   name: string;
   email: string;
-  role: "admin" | "user";
-};
+  role: 'admin' | 'user';
+}
 
-type AuthContextType = {
+interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string, role: "admin" | "user") => Promise<boolean>;
+  isLoading: boolean;
+  error: string | null;
+  login: (email: string, password: string, role?: 'admin' | 'user') => Promise<boolean>;
   signup: (name: string, email: string, password: string) => Promise<boolean>;
   logout: () => void;
-  isLoading: boolean;
-};
+}
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock user data for demo purposes (in a real app, this would be from a database)
-const MOCK_USERS = [
-  { 
-    id: "admin-1", 
-    name: "Admin User", 
-    email: "admin@example.com", 
-    password: "admin123", 
-    role: "admin" as const
-  },
-  { 
-    id: "user-1", 
-    name: "Regular User", 
-    email: "user@example.com", 
-    password: "user123", 
-    role: "user" as const
-  },
-];
+interface AuthProviderProps {
+  children: ReactNode;
+}
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Check for existing session on mount
   useEffect(() => {
-    const storedUser = localStorage.getItem("grievance_system_user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
+    const storedUser = localStorage.getItem('user');
+    const token = localStorage.getItem('token');
+    
+    if (storedUser && token) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+      } catch (e) {
+        console.error('Failed to parse stored user', e);
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
+      }
     }
+    
     setIsLoading(false);
   }, []);
 
-  const login = async (email: string, password: string, role: "admin" | "user"): Promise<boolean> => {
+  const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
+    setError(null);
     
-    // Simulate API request delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const foundUser = MOCK_USERS.find(
-      u => u.email === email && u.password === password && u.role === role
-    );
-    
-    if (foundUser) {
-      const { password, ...userWithoutPassword } = foundUser;
-      setUser(userWithoutPassword);
-      localStorage.setItem("grievance_system_user", JSON.stringify(userWithoutPassword));
+    try {
+      const response = await authApi.login(email, password);
+      
+      if (response.token) {
+        // Store the token
+        localStorage.setItem('token', response.token);
+        
+        // Format and store user info
+        const userData: User = {
+          id: response.user.id,
+          name: response.user.name,
+          email: response.user.email,
+          role: response.user.role,
+        };
+        
+        localStorage.setItem('user', JSON.stringify(userData));
+        setUser(userData);
+        return true;
+      } else {
+        throw new Error('Login failed - no token received');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      setError('Invalid credentials. Please try again.');
+      return false;
+    } finally {
       setIsLoading(false);
-      return true;
     }
-    
-    setIsLoading(false);
-    return false;
   };
-  
+
   const signup = async (name: string, email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
+    setError(null);
     
-    // Simulate API request delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Check if user already exists
-    const userExists = MOCK_USERS.some(u => u.email === email);
-    
-    if (userExists) {
-      setIsLoading(false);
+    try {
+      const response = await authApi.register(name, email, password);
+      
+      if (response.success) {
+        // Auto-login after successful signup
+        return await login(email, password);
+      } else {
+        throw new Error('Signup failed');
+      }
+    } catch (error) {
+      console.error('Signup error:', error);
+      setError('Registration failed. Please try again.');
       return false;
+    } finally {
+      setIsLoading(false);
     }
-    
-    // In a real app, you'd add the user to a database
-    // For demo purposes, we'll just set up the session
-    const newUser = {
-      id: `user-${Date.now()}`,
-      name,
-      email,
-      role: "user" as const
-    };
-    
-    setUser(newUser);
-    localStorage.setItem("grievance_system_user", JSON.stringify(newUser));
-    setIsLoading(false);
-    return true;
   };
-  
+
   const logout = () => {
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
     setUser(null);
-    localStorage.removeItem("grievance_system_user");
   };
-  
+
   return (
-    <AuthContext.Provider value={{ user, login, signup, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, isLoading, error, login, signup, logout }}>
       {children}
     </AuthContext.Provider>
   );
-}
+};
 
-export function useAuth() {
+export const useAuth = () => {
   const context = useContext(AuthContext);
+  
   if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    throw new Error('useAuth must be used within an AuthProvider');
   }
+  
   return context;
-}
+};

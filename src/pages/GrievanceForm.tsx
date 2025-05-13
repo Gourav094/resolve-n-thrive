@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { createGrievance } from '@/services/grievanceService';
+import { grievanceApi } from '@/services/api';
 import MainLayout from '@/components/Layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { FileText, Send } from 'lucide-react';
@@ -46,23 +46,25 @@ const GrievanceForm = () => {
     setIsSubmitting(true);
 
     try {
-      const newGrievance = createGrievance({
+      const grievanceData = {
         title,
         description,
         category,
         status: 'pending',
         userId: user.id,
         userName: user.name
-      });
+      };
+      
+      const response = await grievanceApi.createGrievance(grievanceData);
 
       toast({
         title: "Grievance submitted!",
-        description: `Your grievance #${newGrievance.id} has been submitted successfully.`
+        description: `Your grievance #${response.id || 'XXXX'} has been submitted successfully.`
       });
 
-      navigate(`/grievances/${newGrievance.id}`);
+      navigate(`/grievances/${response.id}`);
     } catch (error) {
-      setFormError('An error occurred. Please try again.');
+      setFormError('An error occurred while submitting your grievance. Please try again.');
       console.error(error);
     } finally {
       setIsSubmitting(false);

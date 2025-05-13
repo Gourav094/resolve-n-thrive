@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import MainLayout from '@/components/Layout/MainLayout';
 
 const Signup = () => {
-  const { user, signup, isLoading } = useAuth();
+  const { user, signup, isLoading, error: authError } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   
@@ -47,7 +47,7 @@ const Signup = () => {
         });
         navigate('/dashboard');
       } else {
-        setFormError('This email is already registered. Please use a different email or login.');
+        setFormError(authError || 'This email is already registered. Please use a different email or login.');
       }
     } catch (error) {
       setFormError('An error occurred. Please try again.');

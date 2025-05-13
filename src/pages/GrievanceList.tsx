@@ -1,9 +1,11 @@
 
 import React, { useState, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import MainLayout from '@/components/Layout/MainLayout';
 import { useAuth } from '@/context/AuthContext';
-import { getAllGrievances, getGrievancesByUser, GrievanceStatus } from '@/services/grievanceService';
+import { grievanceApi } from '@/services/api';
+import { GrievanceStatus } from '@/services/grievanceService';
 import { Button } from '@/components/ui/button';
 import { Search, FileText, Filter } from 'lucide-react';
 
@@ -15,22 +17,38 @@ const GrievanceList = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentStatus, setCurrentStatus] = useState<GrievanceStatus | 'all'>(statusFilter || 'all');
 
-  // Get grievances based on user role
-  const allGrievances = user?.role === 'admin' ? getAllGrievances() : getGrievancesByUser(user?.id || '');
+  // Fetch grievances using React Query
+  const { data: grievances = [], isLoading, error } = useQuery({
+    queryKey: ['grievances'],
+    queryFn: () => grievanceApi.getAllGrievances(),
+  });
   
   // Apply filters
   const filteredGrievances = useMemo(() => {
-    return allGrievances.filter(grievance => {
+    return grievances.filter((grievance: any) => {
       const matchesSearch = 
-        grievance.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        grievance.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        grievance.id.toLowerCase().includes(searchTerm.toLowerCase());
+        grievance.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        grievance.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        grievance.id?.toString().toLowerCase().includes(searchTerm.toLowerCase());
       
       const matchesStatus = currentStatus === 'all' || grievance.status === currentStatus;
       
       return matchesSearch && matchesStatus;
     });
-  }, [allGrievances, searchTerm, currentStatus]);
+  }, [grievances, searchTerm, currentStatus]);
+
+  // Handle search with API
+  const handleSearch = async () => {
+    if (searchTerm.trim()) {
+      try {
+        const results = await grievanceApi.searchGrievances(searchTerm);
+        console.log('Search results:', results);
+        // The filtering is already handled by the useMemo above
+      } catch (error) {
+        console.error('Error searching:', error);
+      }
+    }
+  };
 
   return (
     <MainLayout requireAuth>
@@ -59,6 +77,7 @@ const GrievanceList = () => {
               placeholder="Search grievances..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               className="form-input pl-10"
             />
           </div>
@@ -79,59 +98,70 @@ const GrievanceList = () => {
         </div>
       </div>
 
-      <div className="bg-card rounded-lg shadow border border-border overflow-hidden">
-        <table className="w-full text-left">
-          <thead>
-            <tr className="bg-muted">
-              <th className="px-4 py-3">ID</th>
-              <th className="px-4 py-3">Title</th>
-              {user?.role === 'admin' && <th className="px-4 py-3">Submitted By</th>}
-              <th className="px-4 py-3">Category</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Created</th>
-              <th className="px-4 py-3">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredGrievances.map((grievance) => (
-              <tr key={grievance.id} className="border-b border-border hover:bg-muted/50">
-                <td className="px-4 py-3">{grievance.id}</td>
-                <td className="px-4 py-3">{grievance.title}</td>
-                {user?.role === 'admin' && <td className="px-4 py-3">{grievance.userName}</td>}
-                <td className="px-4 py-3">{grievance.category}</td>
-                <td className="px-4 py-3">
-                  <span className={`
-                    ${grievance.status === 'pending' ? 'grievance-status-pending' : ''}
-                    ${grievance.status === 'in-progress' ? 'grievance-status-inprogress' : ''}
-                    ${grievance.status === 'resolved' ? 'grievance-status-resolved' : ''}
-                    ${grievance.status === 'rejected' ? 'grievance-status-rejected' : ''}
-                  `}>
-                    {grievance.status}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  {new Date(grievance.createdAt).toLocaleDateString()}
-                </td>
-                <td className="px-4 py-3">
-                  <Link 
-                    to={`/grievances/${grievance.id}`}
-                    className="text-primary hover:underline"
-                  >
-                    View
-                  </Link>
-                </td>
+      {isLoading ? (
+        <div className="flex justify-center py-12">
+          <div className="animate-pulse text-lg">Loading grievances...</div>
+        </div>
+      ) : error ? (
+        <div className="bg-red-50 p-4 rounded-lg text-red-700 mb-6">
+          Failed to load grievances. Please try again later.
+        </div>
+      ) : (
+        <div className="bg-card rounded-lg shadow border border-border overflow-hidden">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-muted">
+                <th className="px-4 py-3">ID</th>
+                <th className="px-4 py-3">Title</th>
+                {user?.role === 'admin' && <th className="px-4 py-3">Submitted By</th>}
+                <th className="px-4 py-3">Category</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Created</th>
+                <th className="px-4 py-3">Actions</th>
               </tr>
-            ))}
-            {filteredGrievances.length === 0 && (
-              <tr>
-                <td colSpan={user?.role === 'admin' ? 7 : 6} className="px-4 py-8 text-center text-muted-foreground">
-                  No grievances found.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {filteredGrievances.length > 0 ? (
+                filteredGrievances.map((grievance: any) => (
+                  <tr key={grievance.id} className="border-b border-border hover:bg-muted/50">
+                    <td className="px-4 py-3">{grievance.id}</td>
+                    <td className="px-4 py-3">{grievance.title}</td>
+                    {user?.role === 'admin' && <td className="px-4 py-3">{grievance.userName || grievance.createdBy || "Unknown"}</td>}
+                    <td className="px-4 py-3">{grievance.category}</td>
+                    <td className="px-4 py-3">
+                      <span className={`
+                        ${grievance.status === 'pending' ? 'grievance-status-pending' : ''}
+                        ${grievance.status === 'in-progress' ? 'grievance-status-inprogress' : ''}
+                        ${grievance.status === 'resolved' ? 'grievance-status-resolved' : ''}
+                        ${grievance.status === 'rejected' ? 'grievance-status-rejected' : ''}
+                      `}>
+                        {grievance.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {new Date(grievance.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Link 
+                        to={`/grievances/${grievance.id}`}
+                        className="text-primary hover:underline"
+                      >
+                        View
+                      </Link>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={user?.role === 'admin' ? 7 : 6} className="px-4 py-8 text-center text-muted-foreground">
+                    No grievances found.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </MainLayout>
   );
 };

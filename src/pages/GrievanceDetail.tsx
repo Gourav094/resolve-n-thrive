@@ -1,14 +1,11 @@
 
 import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  getGrievanceById, 
-  updateGrievance, 
-  addComment, 
-  GrievanceStatus 
-} from '@/services/grievanceService';
+import { grievanceApi } from '@/services/api';
+import { GrievanceStatus } from '@/services/grievanceService';
 import MainLayout from '@/components/Layout/MainLayout';
 import { 
   ArrowLeft, 
@@ -25,13 +22,74 @@ const GrievanceDetail = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  const grievance = getGrievanceById(id || '');
   const [comment, setComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // If grievance not found
-  if (!grievance) {
+  // Fetch grievance details
+  const { 
+    data: grievance, 
+    isLoading,
+    error 
+  } = useQuery({
+    queryKey: ['grievance', id],
+    queryFn: () => grievanceApi.getGrievanceById(id || ''),
+    enabled: !!id
+  });
+
+  // Status update mutation
+  const updateStatusMutation = useMutation({
+    mutationFn: (newStatus: GrievanceStatus) => {
+      return grievanceApi.createGrievance({ 
+        ...grievance,
+        id: grievance.id,
+        status: newStatus 
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['grievance', id] });
+      toast({
+        title: "Status updated",
+        description: "Grievance status has been successfully updated"
+      });
+    }
+  });
+
+  // Add comment mutation
+  const addCommentMutation = useMutation({
+    mutationFn: (commentText: string) => {
+      return grievanceApi.addComment({ 
+        grievanceId: grievance.id,
+        text: commentText,
+        userId: user?.id || '',
+        userName: user?.name || '',
+        isAdmin: user?.role === 'admin'
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['grievance', id] });
+      setComment('');
+      toast({
+        title: "Comment added",
+        description: "Your comment has been added successfully"
+      });
+    }
+  });
+
+  // Handle loading state
+  if (isLoading) {
+    return (
+      <MainLayout requireAuth>
+        <div className="flex justify-center py-12">
+          <div className="animate-pulse text-lg">Loading grievance details...</div>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  // Handle error state
+  if (error || !grievance) {
     return (
       <MainLayout requireAuth>
         <div className="text-center p-10">
@@ -64,48 +122,16 @@ const GrievanceDetail = () => {
 
   const handleStatusChange = async (newStatus: GrievanceStatus) => {
     if (user?.role !== 'admin') return;
-    
-    try {
-      const updated = updateGrievance(grievance.id, { status: newStatus });
-      
-      if (updated) {
-        toast({
-          title: "Status updated",
-          description: `Grievance status changed to ${newStatus}`
-        });
-      }
-    } catch (error) {
-      console.error('Error updating status:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update status",
-        variant: "destructive"
-      });
-    }
+    updateStatusMutation.mutate(newStatus);
   };
 
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!comment.trim()) return;
-    setIsSubmitting(true);
     
     try {
-      if (user) {
-        addComment(
-          grievance.id,
-          comment,
-          user.id,
-          user.name,
-          user.role === 'admin'
-        );
-        
-        setComment('');
-        toast({
-          title: "Comment added",
-          description: "Your comment has been added successfully"
-        });
-      }
+      addCommentMutation.mutate(comment);
     } catch (error) {
       console.error('Error adding comment:', error);
       toast({
@@ -113,8 +139,6 @@ const GrievanceDetail = () => {
         description: "Failed to add comment",
         variant: "destructive"
       });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -136,7 +160,7 @@ const GrievanceDetail = () => {
               <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
                 <span className="flex items-center">
                   <User className="mr-1 h-4 w-4" />
-                  {grievance.userName}
+                  {grievance.userName || grievance.createdBy || "Unknown"}
                 </span>
                 <span className="flex items-center">
                   <Calendar className="mr-1 h-4 w-4" />
@@ -181,24 +205,28 @@ const GrievanceDetail = () => {
                 <Button
                   variant={grievance.status === 'pending' ? 'default' : 'outline'}
                   onClick={() => handleStatusChange('pending')}
+                  disabled={updateStatusMutation.isPending}
                 >
                   Pending
                 </Button>
                 <Button
                   variant={grievance.status === 'in-progress' ? 'default' : 'outline'}
                   onClick={() => handleStatusChange('in-progress')}
+                  disabled={updateStatusMutation.isPending}
                 >
                   In Progress
                 </Button>
                 <Button
                   variant={grievance.status === 'resolved' ? 'default' : 'outline'}
                   onClick={() => handleStatusChange('resolved')}
+                  disabled={updateStatusMutation.isPending}
                 >
                   Resolved
                 </Button>
                 <Button
                   variant={grievance.status === 'rejected' ? 'default' : 'outline'}
                   onClick={() => handleStatusChange('rejected')}
+                  disabled={updateStatusMutation.isPending}
                 >
                   Rejected
                 </Button>
@@ -215,7 +243,7 @@ const GrievanceDetail = () => {
 
             <div className="space-y-4 mb-6">
               {grievance.comments && grievance.comments.length > 0 ? (
-                grievance.comments.map(comment => (
+                grievance.comments.map((comment: any) => (
                   <div 
                     key={comment.id} 
                     className={`p-4 rounded-lg ${
@@ -252,17 +280,17 @@ const GrievanceDetail = () => {
                   onChange={(e) => setComment(e.target.value)}
                   className="form-input min-h-[100px]"
                   placeholder="Type your comment here..."
-                  disabled={isSubmitting}
+                  disabled={addCommentMutation.isPending}
                 />
               </div>
 
               <div className="flex justify-end">
                 <Button
                   type="submit"
-                  disabled={!comment.trim() || isSubmitting}
+                  disabled={!comment.trim() || addCommentMutation.isPending}
                 >
                   <Send className="mr-2 h-4 w-4" />
-                  {isSubmitting ? 'Sending...' : 'Send Comment'}
+                  {addCommentMutation.isPending ? 'Sending...' : 'Send Comment'}
                 </Button>
               </div>
             </form>

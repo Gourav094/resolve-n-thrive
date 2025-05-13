@@ -8,13 +8,12 @@ import { Button } from '@/components/ui/button';
 import MainLayout from '@/components/Layout/MainLayout';
 
 const Login = () => {
-  const { user, login, isLoading } = useAuth();
+  const { user, login, isLoading, error: authError } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<'user' | 'admin'>('user');
   const [formError, setFormError] = useState('');
 
   // Redirect if already logged in
@@ -32,7 +31,7 @@ const Login = () => {
     }
 
     try {
-      const success = await login(email, password, role);
+      const success = await login(email, password);
       
       if (success) {
         toast({
@@ -41,7 +40,7 @@ const Login = () => {
         });
         navigate('/dashboard');
       } else {
-        setFormError('Invalid credentials. Please try again.');
+        setFormError(authError || 'Invalid credentials. Please try again.');
       }
     } catch (error) {
       setFormError('An error occurred. Please try again.');
@@ -92,34 +91,6 @@ const Login = () => {
                 placeholder="********"
                 disabled={isLoading}
               />
-            </div>
-
-            <div className="form-input-wrapper">
-              <label className="form-label">Login As</label>
-              <div className="flex gap-4">
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    value="user"
-                    checked={role === 'user'}
-                    onChange={() => setRole('user')}
-                    className="mr-2"
-                    disabled={isLoading}
-                  />
-                  User
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    value="admin"
-                    checked={role === 'admin'}
-                    onChange={() => setRole('admin')}
-                    className="mr-2"
-                    disabled={isLoading}
-                  />
-                  Admin
-                </label>
-              </div>
             </div>
 
             <Button 
